@@ -1,0 +1,7 @@
+# colcon's build, install and log trees, at the workspace root.
+/build/
+/install/
+/log/
+
+# Python's bytecode cache.
+__pycache__/
