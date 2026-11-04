@@ -1,5 +1,7 @@
 """Gazebo's underwater example runs, and its vehicle moves under its thruster's command."""
 
+import time
+
 import gz.math7  # noqa: F401  Lets the bindings return poses.
 from gz.msgs10.double_pb2 import Double
 from gz.sim8 import Link, Model, TestFixture, World, world_entity
@@ -10,6 +12,7 @@ WORLD = 'auv_controls.sdf'
 THRUST_TOPIC = '/model/tethys/joint/propeller_joint/cmd_thrust'
 FORWARD_THRUST_N = -31.0  # the example's own command
 STEPS = 5000  # 5 s of the world's 1 ms steps
+DISCOVERY_S = 10.0  # for Gazebo's transport to connect the command to the thruster
 
 
 def test_moves_under_thrust():
@@ -29,6 +32,11 @@ def test_moves_under_thrust():
     fixture.on_pre_update(command)
     fixture.on_post_update(record)
     fixture.finalize()
+    # The world is loaded, so the thruster has subscribed; discovery may still be connecting it.
+    deadline = time.monotonic() + DISCOVERY_S
+    while not thruster.has_connections():
+        assert time.monotonic() < deadline, 'the thruster never subscribed to its command'
+        time.sleep(0.01)
     fixture.server().run(True, STEPS, False)
 
     assert len(positions) == STEPS
