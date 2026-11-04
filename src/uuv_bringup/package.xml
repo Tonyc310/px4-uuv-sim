@@ -9,6 +9,17 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <test_depend>ament_cmake_flake8</test_depend>
+  <test_depend>ament_cmake_lint_cmake</test_depend>
+  <test_depend>ament_cmake_pep257</test_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>ament_cmake_xmllint</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>gz_math_vendor</test_depend>
+  <test_depend>gz_msgs_vendor</test_depend>
+  <test_depend>gz_sim_vendor</test_depend>
+  <test_depend>gz_transport_vendor</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>
