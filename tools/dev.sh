@@ -16,7 +16,10 @@ CONTEXT="$(mktemp -d)"
 trap 'rm -rf "$CONTEXT"' EXIT
 (cd "$ROOT" && find src -name package.xml -exec cp --parents {} "$CONTEXT" \;)
 cp "$ROOT/docker/entrypoint.sh" "$CONTEXT/"
-docker build --quiet --tag "$IMAGE" --file "$ROOT/docker/Dockerfile" "$CONTEXT" >/dev/null
+# CI adds its layer cache here (DOCKER_BUILD_OPTIONS); a developer's builds use Docker's own.
+read -r -a BUILD_OPTIONS <<<"${DOCKER_BUILD_OPTIONS:-}"
+docker build --quiet --tag "$IMAGE" --file "$ROOT/docker/Dockerfile" "${BUILD_OPTIONS[@]}" \
+    "$CONTEXT" >/dev/null
 
 DESKTOP=()
 if [[ "${1:-}" == gui ]]; then
