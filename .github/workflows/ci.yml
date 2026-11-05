@@ -12,10 +12,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # The image takes about 10 minutes to build from nothing, so its layers are cached between
-      # runs in GitHub's cache: buildx can write there, and the runtime action gives the build step
-      # the token it needs. --load puts the image in Docker for tools/dev.sh to run.
+      # The image takes about 20 minutes to build from nothing, so its layers are cached between
+      # runs in GitHub's cache. Docker's default builder can't write there: install makes `docker
+      # build` the buildx builder set up here, and the runtime action gives the build step the token
+      # the cache needs. --load puts the image in Docker for tools/dev.sh to run.
       - uses: docker/setup-buildx-action@v4
+        with:
+          install: true
       - uses: crazy-max/ghaction-github-runtime@v4
 
       - name: Build and test
