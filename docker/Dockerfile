@@ -10,9 +10,10 @@ RUN apt-get update \
     && rosdep install --from-paths /tmp/src --ignore-src --rosdistro jazzy -y \
     && rm -rf /var/lib/apt/lists/* /tmp/src
 
-# Gazebo's transport finds its peers by multicast on this address. Everything runs in this one
-# container, and multicast on a CI runner's container network reaches nobody.
-ENV GZ_IP=127.0.0.1
+# Gazebo's transport only talks within a partition, named by default after the host and the user.
+# The container runs as the calling user, who may have no name in it (CI's runner doesn't), and
+# then nothing connects.
+ENV GZ_PARTITION=px4-uuv-sim
 
 # Models Gazebo's example worlds fetch from Fuel as they load, fetched once here, so the tests run
 # offline and on the same model every time. Loading the world fetches them where it will look for
