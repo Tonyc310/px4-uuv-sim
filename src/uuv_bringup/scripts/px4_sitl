@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# PX4's software-in-the-loop simulation with one of PX4's Gazebo models, in a fresh working directory
+# for its parameters and logs:
+#   px4_sitl <model> [px4 options…]        for example: px4_sitl gz_x500
+# HEADLESS=1 runs Gazebo without its window; the option -d runs PX4 without its interactive shell.
+set -euo pipefail
+
+MODEL="$1"
+shift
+
+# Where PX4's build put its Gazebo models, worlds and plugins. The file extends Gazebo's own path
+# variables, which may not be set yet.
+set +u
+source "$PX4_BUILD/rootfs/gz_env.sh"
+set -u
+
+cd "$(mktemp -d)"
+PX4_SIM_MODEL="$MODEL" exec "$PX4_BUILD/bin/px4" "$@" "$PX4_BUILD/etc" -s etc/init.d-posix/rcS

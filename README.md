@@ -6,7 +6,7 @@ It uses public vehicles and public data only.
 
 ## Status
 
-Milestone 1, the toolchain, is under way: Gazebo Harmonic runs in the development container, with its underwater example tested. The plan, in order:
+Milestone 1, the toolchain, is under way: Gazebo Harmonic and PX4 v1.17.0's software-in-the-loop simulation run in the development container, each tested. The plan, in order:
 
 1. **Toolchain:** Gazebo's underwater example and PX4's software-in-the-loop simulation running, with PX4's topics in ROS 2.
 2. **Vehicle model:** a Gazebo system plugin for the BlueROV2's 6-DOF dynamics (rigid body, added mass, damping, buoyancy, thrusters), checked against Gazebo's own hydrodynamics and Fossen's Python simulator.
@@ -17,7 +17,7 @@ Milestone 1, the toolchain, is under way: Gazebo Harmonic runs in the developmen
 
 ## Build and test
 
-Everything runs in a Docker container with ROS 2 Jazzy and Gazebo Harmonic on Ubuntu 24.04, the platform PX4 supports, so the host needs only Docker. The container installs what each package's `package.xml` declares, with rosdep, and fetches the models Gazebo's examples need, so the tests run offline. One command builds the container and the workspace and runs the tests; CI runs the same:
+Everything runs in a Docker container with ROS 2 Jazzy and Gazebo Harmonic on Ubuntu 24.04, the platform PX4 supports, so the host needs only Docker. The container builds PX4 from source at a release tag, installs what each package's `package.xml` declares, with rosdep, and fetches the models Gazebo's examples need, so the tests run offline. The image is about 9 GB, and its first build takes about 15 minutes. One command builds the container and the workspace and runs the tests; CI runs the same:
 
 ```bash
 tools/dev.sh test
@@ -25,25 +25,28 @@ tools/dev.sh test
 
 ```
 Starting >>> uuv_bringup
-Finished <<< uuv_bringup [15.5s]
+Finished <<< uuv_bringup [21.2s]
 
-Summary: 1 package finished [15.6s]
-Summary: 10 tests, 0 errors, 0 failures, 0 skipped
+Summary: 1 package finished [21.2s]
+Summary: 13 tests, 0 errors, 0 failures, 0 skipped
 ```
 
-The tests run Gazebo headless. Gazebo's underwater example, MBARI's Tethys LRAUV with buoyancy, hydrodynamics and a thruster, runs 5 simulated seconds under its propeller's thrust and must move more than 1 m. ROS 2's linters check the Python, CMake and package files.
+The tests run Gazebo headless. Gazebo's underwater example, MBARI's Tethys LRAUV with buoyancy, hydrodynamics and a thruster, runs 5 simulated seconds under its propeller's thrust and must move more than 1 m. PX4's quadcopter, `gz_x500`, boots in Gazebo and must report itself ready for takeoff within a minute; the test first turns off the airframe's demand for a ground station's link, which a test doesn't have. ROS 2's linters check the Python, CMake and package files.
 
 `tools/dev.sh build` only builds, and `tools/dev.sh` alone opens a shell in the container, with the repository as the colcon workspace at `/ws`. `tools/dev.sh gui` does the same with the desktop's display and GPU, for Gazebo's window:
 
 ```bash
 tools/dev.sh gui gz sim auv_controls.sdf
+tools/dev.sh gui src/uuv_bringup/scripts/px4_sitl gz_x500
 ```
+
+The second runs PX4 with its quadcopter, with PX4's shell (`pxh>`) in the terminal. With no ground station connected, `param set NAV_DLL_ACT 0` lets it arm; `commander takeoff` then flies it up to 2.5 m.
 
 ## Layout
 
 ```
 docker/   the development container
-src/      the ROS 2 packages: uuv_bringup, the launch files
+src/      the ROS 2 packages: uuv_bringup, which starts PX4's simulation (and later the rest)
 tools/    dev.sh, which runs any command in the container
 ```
 
