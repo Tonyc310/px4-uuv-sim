@@ -10,11 +10,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGE="px4-uuv-sim-dev"
 
-# The image needs only each package's package.xml, for rosdep: a build context of just those keeps
-# a change to the code from rebuilding it.
+# The image needs only each package's package.xml, for rosdep, and its entrypoint: a build context of
+# just those keeps a change to the code from rebuilding it.
 CONTEXT="$(mktemp -d)"
 trap 'rm -rf "$CONTEXT"' EXIT
 (cd "$ROOT" && find src -name package.xml -exec cp --parents {} "$CONTEXT" \;)
+cp "$ROOT/docker/entrypoint.sh" "$CONTEXT/"
 docker build --quiet --tag "$IMAGE" --file "$ROOT/docker/Dockerfile" "$CONTEXT" >/dev/null
 
 DESKTOP=()

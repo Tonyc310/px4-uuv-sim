@@ -19,6 +19,9 @@
   <test_depend>gz_msgs_vendor</test_depend>
   <test_depend>gz_sim_vendor</test_depend>
   <test_depend>gz_transport_vendor</test_depend>
+  <test_depend>px4_msgs</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <test_depend>rclpy</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
