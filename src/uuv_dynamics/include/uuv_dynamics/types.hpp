@@ -8,6 +8,7 @@ namespace uuv_dynamics
 
 // A body twist (linear velocity, then angular) or wrench (force, then moment).
 using Vector6d = Eigen::Matrix<double, 6, 1>;
+using Matrix6d = Eigen::Matrix<double, 6, 6>;
 
 }  // namespace uuv_dynamics
 
