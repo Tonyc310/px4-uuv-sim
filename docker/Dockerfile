@@ -71,6 +71,9 @@ RUN mkdir -p "$GZ_FUEL_CACHE_PATH" \
     && . /opt/ros/jazzy/setup.sh \
     && gz sim -s -r --iterations 1 auv_controls.sdf
 
+# PX4's models, so a world outside PX4's own launch finds the BlueROV2 Heavy's mesh.
+ENV GZ_SIM_RESOURCE_PATH=/opt/PX4-Autopilot/Tools/simulation/gz/models
+
 # Every command runs with ROS 2 and the px4_msgs workspace set up.
 COPY entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]

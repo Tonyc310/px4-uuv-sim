@@ -6,7 +6,7 @@ It uses public vehicles and public data only.
 
 ## Status
 
-Milestone 1, the toolchain, is done: Gazebo Harmonic and PX4 v1.17.0's software-in-the-loop simulation run in the development container, and PX4's topics reach ROS 2 through the Micro XRCE-DDS Agent, each tested. Milestone 2, the vehicle model for the BlueROV2 Heavy, is under way: `uuv_dynamics` holds the vehicle's equations of motion in Fossen's form, integrates them over time, works out the wrench a Gazebo plugin must add to Gazebo's rigid-body physics, and converts between Gazebo's frames and Fossen's. Its parameters come from Wu (2018), who estimated them from published data on the earlier BlueROV because the tank tests he planned weren't run, so the model is a plausible BlueROV2 Heavy, not a measured one. Each value cites its table and page in `src/uuv_dynamics/src/vehicle.cpp`. The plan, in order:
+Milestone 1, the toolchain, is done: Gazebo Harmonic and PX4 v1.17.0's software-in-the-loop simulation run in the development container, and PX4's topics reach ROS 2 through the Micro XRCE-DDS Agent, each tested. Milestone 2, the vehicle model for the BlueROV2 Heavy, is under way: `uuv_dynamics` holds the vehicle's equations of motion in Fossen's form, integrates them over time, works out the wrench a Gazebo plugin must add to Gazebo's rigid-body physics, and converts between Gazebo's frames and Fossen's. `uuv_gazebo`'s plugin applies that wrench to a BlueROV2 Heavy model in Gazebo; thrusters come next. Its parameters come from Wu (2018), who estimated them from published data on the earlier BlueROV because the tank tests he planned weren't run, so the model is a plausible BlueROV2 Heavy, not a measured one. Each value cites its table and page in `src/uuv_dynamics/src/vehicle.cpp`. The plan, in order:
 
 1. **Toolchain:** Gazebo's underwater example and PX4's software-in-the-loop simulation running, with PX4's topics in ROS 2.
 2. **Vehicle model:** a Gazebo system plugin for the BlueROV2's 6-DOF dynamics (rigid body, added mass, damping, buoyancy, thrusters), checked against Gazebo's own hydrodynamics and Fossen's Python simulator.
@@ -26,14 +26,16 @@ tools/dev.sh test
 ```
 Starting >>> uuv_bringup
 Starting >>> uuv_dynamics
-Finished <<< uuv_dynamics [1.48s]
-Finished <<< uuv_bringup [39.1s]
+Finished <<< uuv_dynamics [1.20s]
+Starting >>> uuv_gazebo
+Finished <<< uuv_gazebo [14.6s]
+Finished <<< uuv_bringup [38.7s]
 
-Summary: 2 packages finished [39.3s]
-Summary: 66 tests, 0 errors, 0 failures, 0 skipped
+Summary: 3 packages finished [38.8s]
+Summary: 78 tests, 0 errors, 0 failures, 0 skipped
 ```
 
-The tests run Gazebo headless. Gazebo's underwater example, MBARI's Tethys LRAUV with buoyancy, hydrodynamics and a thruster, runs 5 simulated seconds under its propeller's thrust and must move more than 1 m. PX4's quadcopter, `gz_x500`, boots in Gazebo and must report itself ready for takeoff within a minute; the test first turns off the airframe's demand for a ground station's link, which a test doesn't have. With PX4 and the agent running, a ROS 2 node must receive PX4's vehicle status within 30 s. `uuv_dynamics`'s unit tests check the conversions between the frames Gazebo and ROS use (east-north-up, forward-left-up) and those Fossen's equations and PX4 use (north-east-down, forward-right-down), against known vectors and attitudes, and that each conversion undoes the other. They check that the equations of motion keep the guarantees the physics gives: the mass matrix is symmetric and positive definite, Coriolis forces do no work, drag always takes energy out, and a level, neutrally buoyant vehicle feels no restoring force. They also check behavior with known answers: net buoyancy accelerates the vehicle in heave by exactly what its mass and added mass allow, a tilted vehicle is turned back to level, surge settles at the speed where thrust equals drag, surge thrust pitches the nose down because it pushes above the centre of gravity, and a turning vehicle skids outward as the Coriolis terms predict. The wrench for Gazebo, added to what a rigid-body simulator computes itself, must reproduce Fossen's equations exactly. The integrator must match the exponential decay of a linearly damped surge, and move and turn the vehicle in the world as its body velocity says. ROS 2's linters check the C++, Python, CMake and package files.
+The tests run Gazebo headless. Gazebo's underwater example, MBARI's Tethys LRAUV with buoyancy, hydrodynamics and a thruster, runs 5 simulated seconds under its propeller's thrust and must move more than 1 m. PX4's quadcopter, `gz_x500`, boots in Gazebo and must report itself ready for takeoff within a minute; the test first turns off the airframe's demand for a ground station's link, which a test doesn't have. With PX4 and the agent running, a ROS 2 node must receive PX4's vehicle status within 30 s. `uuv_dynamics`'s unit tests check the conversions between the frames Gazebo and ROS use (east-north-up, forward-left-up) and those Fossen's equations and PX4 use (north-east-down, forward-right-down), against known vectors and attitudes, and that each conversion undoes the other. They check that the equations of motion keep the guarantees the physics gives: the mass matrix is symmetric and positive definite, Coriolis forces do no work, drag always takes energy out, and a level, neutrally buoyant vehicle feels no restoring force. They also check behavior with known answers: net buoyancy accelerates the vehicle in heave by exactly what its mass and added mass allow, a tilted vehicle is turned back to level, surge settles at the speed where thrust equals drag, surge thrust pitches the nose down because it pushes above the centre of gravity, and a turning vehicle skids outward as the Coriolis terms predict. The wrench for Gazebo, added to what a rigid-body simulator computes itself, must reproduce Fossen's equations exactly. The integrator must match the exponential decay of a linearly damped surge, and move and turn the vehicle in the world as its body velocity says. In Gazebo, with the plugin, the BlueROV2 Heavy must follow the library's own integration for 2 s from four starts (rising from rest, righting from 20° nose up, surge slowing from 1 m/s while heading 60° off east, yaw slowing from 0.5 rad/s while rolled 20°), within 1 cm, 0.5° and 1% of its speed. ROS 2's linters check the C++, Python, CMake and package files.
 
 `tools/dev.sh build` only builds, and `tools/dev.sh` alone opens a shell in the container, with the repository as the colcon workspace at `/ws`. `tools/dev.sh gui` does the same with the desktop's display and GPU, for Gazebo's window:
 
@@ -44,12 +46,19 @@ tools/dev.sh gui src/uuv_bringup/scripts/px4_sitl gz_x500
 
 The second runs PX4 with its quadcopter, with PX4's shell (`pxh>`) in the terminal. With no ground station connected, `param set NAV_DLL_ACT 0` lets it arm; `commander takeoff` then flies it up to 2.5 m.
 
+The BlueROV2 Heavy in open water, with the workspace built and its setup sourced so Gazebo finds the plugin and the model:
+
+```bash
+tools/dev.sh gui bash -c '. install/setup.sh && gz sim src/uuv_gazebo/worlds/water.sdf'
+```
+
 ## Layout
 
 ```
 docker/   the development container and its entrypoint
 src/      the ROS 2 packages: uuv_bringup, which starts PX4's simulation (and later the rest),
-          and uuv_dynamics, the vehicle's equations of motion, with no Gazebo in it
+          uuv_dynamics, the vehicle's equations of motion, with no Gazebo in it,
+          and uuv_gazebo, the Gazebo plugin, the BlueROV2 Heavy model and an open-water world
 tools/    dev.sh, which runs any command in the container
 ```
 
