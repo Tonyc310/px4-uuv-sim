@@ -31,6 +31,12 @@ Vector6d acceleration(
   const Vehicle & vehicle, const Vector6d & nu, const Eigen::Quaterniond & attitude,
   const Vector6d & tau);
 
+// The wrench, about the body origin, that a rigid-body simulator applying the weight itself must
+// add for the vehicle to move as these equations say: thrust, buoyancy and the water's forces.
+Vector6d external_wrench(
+  const Vehicle & vehicle, const Vector6d & nu, const Eigen::Quaterniond & attitude,
+  const Vector6d & tau);
+
 }  // namespace uuv_dynamics
 
 #endif  // UUV_DYNAMICS__DYNAMICS_HPP_

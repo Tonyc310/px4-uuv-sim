@@ -231,5 +231,44 @@ TEST(Dynamics, SurgeSettlesWhereThrustEqualsDrag)
   }
 }
 
+struct StateCase
+{
+  std::string name;
+  Vector6d nu;
+  Eigen::Quaterniond attitude;
+  Vector6d tau;
+};
+
+TEST(Dynamics, ExternalWrenchCompletesARigidBodySimulator)
+{
+  // A rigid-body simulator moves the body by M_RB nu_dot + C_RB(nu) nu = the wrenches applied to
+  // it, and applies the weight at the centre of gravity itself. With the external wrench added, it
+  // must accelerate as Fossen's equations say.
+  const Vehicle heavy = bluerov2_heavy();
+  const Eigen::Quaterniond tilted = Eigen::Quaterniond(
+    Eigen::AngleAxisd(0.35, Eigen::Vector3d::UnitX()) *
+    Eigen::AngleAxisd(-0.2, Eigen::Vector3d::UnitY()));
+  const std::vector<StateCase> cases = {
+    {"at rest, level", kAtRest, kLevel, kNoThrust},
+    {"at rest, tilted", kAtRest, tilted, kNoThrust},
+    {"moving in all six and thrusting, tilted", twist(0.5, -0.3, 0.2, 0.1, -0.2, 0.3), tilted,
+     twist(10.0, -5.0, 3.0, 1.0, -0.5, 0.8)},
+  };
+
+  for (const auto & c : cases) {
+    const Matrix6d rigid = rigid_body_mass(heavy);
+    const Eigen::Vector3d weight =
+      heavy.mass * kGravity * (c.attitude.conjugate() * Eigen::Vector3d::UnitZ());
+    Vector6d weight_wrench;
+    weight_wrench << weight, heavy.centre_of_gravity.cross(weight);
+    const Vector6d nu_dot = acceleration(heavy, c.nu, c.attitude, c.tau);
+    const Vector6d expected = rigid * nu_dot + coriolis(rigid, c.nu) * c.nu - weight_wrench;
+
+    const Vector6d result = external_wrench(heavy, c.nu, c.attitude, c.tau);
+
+    EXPECT_LT((result - expected).norm(), kTolerance) << c.name << ": " << result.transpose();
+  }
+}
+
 }  // namespace
 }  // namespace uuv_dynamics
