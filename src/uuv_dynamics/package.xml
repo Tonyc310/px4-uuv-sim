@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>uuv_dynamics</name>
+  <version>0.0.0</version>
+  <description>The BlueROV2's 6-DOF dynamics in Fossen's form, and the conversions between Gazebo's and Fossen's frames.</description>
+  <maintainer email="heytony310@gmail.com">Anthony Chavez</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>eigen</depend>
+
+  <test_depend>ament_cmake_clang_format</test_depend>
+  <test_depend>ament_cmake_cpplint</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_cmake_lint_cmake</test_depend>
+  <test_depend>ament_cmake_xmllint</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
