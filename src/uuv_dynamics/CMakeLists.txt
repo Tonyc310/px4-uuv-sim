@@ -7,7 +7,8 @@ find_package(Eigen3 REQUIRED)
 # Only on this package's own targets: gtest's sources, built alongside, aren't warning-free.
 set(WARNINGS -Wall -Wextra -Wpedantic -Werror)
 
-add_library(${PROJECT_NAME} SHARED src/dynamics.cpp src/frames.cpp src/motion.cpp src/vehicle.cpp)
+add_library(${PROJECT_NAME} SHARED
+  src/dynamics.cpp src/frames.cpp src/motion.cpp src/thrusters.cpp src/vehicle.cpp)
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 target_compile_options(${PROJECT_NAME} PRIVATE ${WARNINGS})
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -40,6 +41,9 @@ if(BUILD_TESTING)
   ament_add_gtest(test_motion test/test_motion.cpp)
   target_compile_options(test_motion PRIVATE ${WARNINGS})
   target_link_libraries(test_motion ${PROJECT_NAME})
+  ament_add_gtest(test_thrusters test/test_thrusters.cpp)
+  target_compile_options(test_thrusters PRIVATE ${WARNINGS})
+  target_link_libraries(test_thrusters ${PROJECT_NAME})
 endif()
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
