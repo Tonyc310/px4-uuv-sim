@@ -1,10 +1,13 @@
 #include <gtest/gtest.h>
 
 #include <Eigen/Geometry>
+#include <chrono>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
+#include "gz/msgs/actuators.pb.h"
 #include "gz/sim/Link.hh"
 #include "gz/sim/Model.hh"
 #include "gz/sim/TestFixture.hh"
@@ -13,8 +16,10 @@
 #include "gz/sim/components/Model.hh"
 #include "gz/sim/components/Name.hh"
 #include "gz/sim/components/PoseCmd.hh"
+#include "gz/transport/Node.hh"
 #include "uuv_dynamics/frames.hpp"
 #include "uuv_dynamics/motion.hpp"
+#include "uuv_dynamics/thrusters.hpp"
 #include "uuv_dynamics/vehicle.hpp"
 
 namespace uuv_gazebo
@@ -59,7 +64,46 @@ struct StartCase
   std::string name;
   Eigen::Quaterniond enu_flu;  // attitude in Gazebo's frames
   Vector6d flu_velocity;       // body velocity in Gazebo's body frame
+  // Motor commands sent in order, as PX4 sends them: us per thruster. None sent if empty.
+  std::vector<std::vector<double>> commands;
 };
+
+// Where PX4's Gazebo bridge publishes the vehicle's motor commands.
+constexpr char kMotorTopic[] = "/bluerov2_heavy/command/motor_speed";
+
+// Publishes motor commands once the plugin is listening, and gives them time to arrive while the
+// simulation is stopped.
+void send_commands(const std::vector<std::vector<double>> & commands)
+{
+  gz::transport::Node node;
+  auto publisher = node.Advertise<gz::msgs::Actuators>(kMotorTopic);
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+  while (!publisher.HasConnections()) {
+    ASSERT_LT(std::chrono::steady_clock::now(), deadline)
+      << "nothing subscribed to " << kMotorTopic;
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  for (const auto & pulses : commands) {
+    gz::msgs::Actuators command;
+    for (const double pulse : pulses) {
+      command.add_velocity(pulse);
+    }
+    publisher.Publish(command);
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  }
+}
+
+// The thrust of the last well-formed command, which the plugin should be holding.
+Vector6d thrust_of(const std::vector<std::vector<double>> & commands)
+{
+  Vector6d tau = Vector6d::Zero();
+  for (const auto & pulses : commands) {
+    if (const auto thrusts = uuv_dynamics::heavy_thrusts(pulses)) {
+      tau = uuv_dynamics::thrust_wrench(uuv_dynamics::bluerov2_heavy_thrusters(), *thrusts);
+    }
+  }
+  return tau;
+}
 
 Vector6d twist(double u, double v, double w, double p, double q, double r)
 {
@@ -104,7 +148,11 @@ std::pair<State, State> run_gazebo(const StartCase & c)
         }
       })
     .Finalize();
-  fixture.Server()->Run(true, kSetupSteps + kSteps, false);
+  fixture.Server()->Run(true, 1, false);
+  if (!c.commands.empty()) {
+    send_commands(c.commands);
+  }
+  fixture.Server()->Run(true, kSetupSteps - 1 + kSteps, false);
   return {start.value(), end.value()};
 }
 
@@ -112,27 +160,45 @@ TEST(FossenDynamics, GazeboFollowsTheLibrary)
 {
   // Each start exercises a different part of the plugin's boundary with Gazebo: buoyancy against
   // Gazebo's weight, the attitude and the righting moment, linear velocity and drag, angular
-  // velocity and drag. The last two start turned away from the world's axes, so a velocity or a
-  // torque left in the wrong frame acts along the wrong axis.
+  // velocity and drag. Two start turned away from the world's axes, so a velocity or a torque left
+  // in the wrong frame acts along the wrong axis. The last two drive the thrusters on PX4's topic:
+  // forward, with the front pair reversed (1300 us) and the rear pair ahead (1700 us), and then
+  // that command followed by a malformed one, which mustn't change it.
   const auto turn = [](double degrees, const Eigen::Vector3d & axis) {
     return Eigen::Quaterniond(Eigen::AngleAxisd(degrees * EIGEN_PI / 180, axis));
   };
+  const std::vector<double> kForward = {1300, 1300, 1700, 1700, 1500, 1500, 1500, 1500};
   const std::vector<StartCase> cases = {
-    {"rising from rest", Eigen::Quaterniond::Identity(), twist(0, 0, 0, 0, 0, 0)},
-    {"righting from 20 degrees nose up", turn(-20, Eigen::Vector3d::UnitY()),
-     twist(0, 0, 0, 0, 0, 0)},
-    {"surge slowing from 1 m/s, heading 60 degrees off east", turn(60, Eigen::Vector3d::UnitZ()),
-     twist(1.0, 0, 0, 0, 0, 0)},
-    {"yaw slowing from 0.5 rad/s, rolled 20 degrees", turn(20, Eigen::Vector3d::UnitX()),
-     twist(0, 0, 0, 0, 0, 0.5)},
+    {"rising from rest", Eigen::Quaterniond::Identity(), twist(0, 0, 0, 0, 0, 0), {}},
+    {"righting from 20 degrees nose up",
+     turn(-20, Eigen::Vector3d::UnitY()),
+     twist(0, 0, 0, 0, 0, 0),
+     {}},
+    {"surge slowing from 1 m/s, heading 60 degrees off east",
+     turn(60, Eigen::Vector3d::UnitZ()),
+     twist(1.0, 0, 0, 0, 0, 0),
+     {}},
+    {"yaw slowing from 0.5 rad/s, rolled 20 degrees",
+     turn(20, Eigen::Vector3d::UnitX()),
+     twist(0, 0, 0, 0, 0, 0.5),
+     {}},
+    {"surging under PX4's motor commands",
+     Eigen::Quaterniond::Identity(),
+     twist(0, 0, 0, 0, 0, 0),
+     {kForward}},
+    {"surging on, a malformed command after it ignored",
+     Eigen::Quaterniond::Identity(),
+     twist(0, 0, 0, 0, 0, 0),
+     {kForward, {1500, 1500, 1500, 1500, 1500, 1500, 1500}}},
   };
   const uuv_dynamics::Vehicle heavy = uuv_dynamics::bluerov2_heavy();
 
   for (const auto & c : cases) {
     const auto [start, gazebo_end] = run_gazebo(c);
+    const Vector6d tau = thrust_of(c.commands);
     State expected = start;
     for (int i = 0; i < kSteps; ++i) {
-      expected = uuv_dynamics::step(heavy, expected, Vector6d::Zero(), kStep);
+      expected = uuv_dynamics::step(heavy, expected, tau, kStep);
     }
     const double scale = std::max(start.nu.norm(), expected.nu.norm());
 

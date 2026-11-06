@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -45,10 +46,45 @@ TEST(Thrusters, T200ThrustFollowsBlueRoboticsData)
     {"full forward", 1900, kgf(5.245035)},
     {"below the range holds full reverse", 1000, kgf(-4.069476)},
     {"above the range holds full forward", 2000, kgf(5.245035)},
+    {"no pulse at all stops the thruster", 0, 0.0},
   };
 
   for (const auto & c : cases) {
     EXPECT_NEAR(t200_thrust(c.pulse_width_us), c.expected, kTolerance) << c.name;
+  }
+}
+
+TEST(Thrusters, EachThrusterGetsItsOwnCommandsThrust)
+{
+  const std::vector<double> pulses = {1100, 1200, 1300, 1400, 1600, 1700, 1800, 1900};
+
+  const auto thrusts = heavy_thrusts(pulses);
+
+  ASSERT_TRUE(thrusts.has_value());
+  for (std::size_t i = 0; i < pulses.size(); ++i) {
+    EXPECT_EQ((*thrusts)[i], t200_thrust(pulses[i])) << "thruster " << i;
+  }
+}
+
+struct CommandCase
+{
+  std::string name;
+  std::vector<double> pulses;
+};
+
+TEST(Thrusters, MalformedCommandsGiveNoThrusts)
+{
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+  const double infinity = std::numeric_limits<double>::infinity();
+  const std::vector<CommandCase> cases = {
+    {"seven values", {1500, 1500, 1500, 1500, 1500, 1500, 1500}},
+    {"nine values", {1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500}},
+    {"a value that isn't a number", {1500, 1500, 1500, nan, 1500, 1500, 1500, 1500}},
+    {"an infinite value", {1500, 1500, 1500, 1500, 1500, 1500, 1500, infinity}},
+  };
+
+  for (const auto & c : cases) {
+    EXPECT_FALSE(heavy_thrusts(c.pulses).has_value()) << c.name;
   }
 }
 

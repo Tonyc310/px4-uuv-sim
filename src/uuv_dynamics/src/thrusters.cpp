@@ -46,6 +46,9 @@ constexpr double kNewtonsPerKgf = 9.80665;  // standard gravity, by the unit's d
 
 double t200_thrust(double pulse_width_us)
 {
+  if (pulse_width_us <= 0.0) {
+    return 0.0;
+  }
   const double last = static_cast<double>(kThrustKgf.size() - 1);
   const double position = std::clamp((pulse_width_us - kFirstPulseUs) / kPulseStepUs, 0.0, last);
   const auto below = static_cast<std::size_t>(std::min(std::floor(position), last - 1.0));
@@ -71,6 +74,21 @@ HeavyThrusters bluerov2_heavy_thrusters()
     {{-0.120, 0.218, 0.0}, {0.0, 0.0, 1.0}},
     {{-0.120, -0.218, 0.0}, {0.0, 0.0, 1.0}},
   }};
+}
+
+std::optional<HeavyThrusts> heavy_thrusts(const std::vector<double> & pulse_widths_us)
+{
+  if (pulse_widths_us.size() != kHeavyThrusterCount) {
+    return std::nullopt;
+  }
+  HeavyThrusts thrusts;
+  for (std::size_t i = 0; i < kHeavyThrusterCount; ++i) {
+    if (!std::isfinite(pulse_widths_us[i])) {
+      return std::nullopt;
+    }
+    thrusts[i] = t200_thrust(pulse_widths_us[i]);
+  }
+  return thrusts;
 }
 
 Vector6d thrust_wrench(const HeavyThrusters & thrusters, const HeavyThrusts & thrusts)
