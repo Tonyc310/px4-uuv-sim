@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<!-- A body with the BlueROV2 Heavy's mass, moved through water by Gazebo's own Hydrodynamics system
+     instead of this project's plugin, for comparing the two. No gravity and no buoyancy: the
+     comparison is of added mass and damping. Values: C.-J. Wu, "6-DoF Modelling and Control of a
+     Remotely Operated Vehicle", Master's thesis, Flinders University, 2018, Tables 5.1 to 5.3,
+     p. 48. -->
+<sdf version="1.9">
+  <world name="gazebo_hydrodynamics">
+    <gravity>0 0 0</gravity>
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+    </physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <model name="heavy">
+      <link name="base_link">
+        <inertial>
+          <mass>11.5</mass>
+          <inertia>
+            <ixx>0.16</ixx>
+            <iyy>0.16</iyy>
+            <izz>0.16</izz>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyz>0</iyz>
+          </inertia>
+        </inertial>
+      </link>
+      <plugin filename="gz-sim-hydrodynamics-system" name="gz::sim::systems::Hydrodynamics">
+        <link_name>base_link</link_name>
+        <xDotU>-5.5</xDotU>
+        <yDotV>-12.7</yDotV>
+        <zDotW>-14.57</zDotW>
+        <kDotP>-0.12</kDotP>
+        <mDotQ>-0.12</mDotQ>
+        <nDotR>-0.12</nDotR>
+        <xU>-4.03</xU>
+        <yV>-6.22</yV>
+        <zW>-5.18</zW>
+        <kP>-0.07</kP>
+        <mQ>-0.07</mQ>
+        <nR>-0.07</nR>
+        <xUabsU>-18.18</xUabsU>
+        <yVabsV>-21.66</yVabsV>
+        <zWabsW>-36.99</zWabsW>
+        <kPabsP>-1.55</kPabsP>
+        <mQabsQ>-1.55</mQabsQ>
+        <nRabsR>-1.55</nRabsR>
+      </plugin>
+    </model>
+  </world>
+</sdf>
