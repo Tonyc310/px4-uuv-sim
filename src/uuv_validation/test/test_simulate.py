@@ -16,6 +16,7 @@ RUN = ['--seconds', '1', '--step', '0.01']
     pytest.param(['--seconds', 'long', '--step', '0.01'], id='a word where a number belongs'),
     pytest.param(['--seconds', '1', '--step', '0.3'], id='a step that does not divide the time'),
     pytest.param(RUN + ['--velocity', '1', '0', '0'], id='three velocities'),
+    pytest.param(RUN + ['--pulses'] + ['1500'] * 7, id='seven pulse widths'),
     pytest.param(RUN + ['--seconds', '2'], id='an option given twice'),
     pytest.param(RUN + ['--depth', '5'], id='an option it does not have'),
 ])

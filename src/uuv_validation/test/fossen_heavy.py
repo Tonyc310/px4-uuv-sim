@@ -22,6 +22,18 @@ ADDED_MASS = np.array([-5.5, -12.7, -14.57, -0.12, -0.12, -0.12])
 LINEAR_DAMPING = np.array([-4.03, -6.22, -5.18, -0.07, -0.07, -0.07])
 QUADRATIC_DAMPING = np.array([-18.18, -21.66, -36.99, -1.55, -1.55, -1.55])
 
+# Wu (2018), Table 4.2, p. 40: the thrusters' positions from the body origin, m. Their order and
+# the way positive thrust pushes are those of PX4's BlueROV2 Heavy airframe (60002).
+THRUSTER_POSITIONS = np.array([
+    [0.156, 0.111, 0.085], [0.156, -0.111, 0.085], [-0.156, 0.111, 0.085], [-0.156, -0.111, 0.085],
+    [0.120, 0.218, 0.0], [0.120, -0.218, 0.0], [-0.120, 0.218, 0.0], [-0.120, -0.218, 0.0]])
+THRUSTER_DIRECTIONS = np.array([
+    [-1, 1, 0], [-1, -1, 0], [1, 1, 0], [1, -1, 0], [0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]])
+# Blue Robotics, "T200 Public Performance Data 10-20V, September 2019", sheet "16 V": thrust in kgf
+# at the pulse widths (us) the tests command.
+T200_THRUST_KGF = {1300: -1.437887, 1460: -0.068039, 1500: 0.0, 1540: 0.077111, 1700: 1.823440}
+NEWTONS_PER_KGF = 9.80665
+
 _COUPLING = MASS * Smtrx(CENTRE_OF_GRAVITY)
 _RIGID_BODY_MASS = np.block([[MASS * np.eye(3), -_COUPLING], [_COUPLING, INERTIA]])
 _TOTAL_MASS = _RIGID_BODY_MASS + np.diag(-ADDED_MASS)
@@ -34,6 +46,16 @@ def _acceleration(eta, nu, tau):
     restoring = gvect(
         WEIGHT, BUOYANCY, eta[4], eta[3], CENTRE_OF_GRAVITY, CENTRE_OF_BUOYANCY)
     return _TOTAL_MASS_INVERSE @ (tau - coriolis @ nu - damping @ nu - restoring)
+
+
+def thrust(pulses):
+    """Return the thrusters' force and moment about the body origin for their pulse widths."""
+    tau = np.zeros(6)
+    for position, direction, pulse in zip(THRUSTER_POSITIONS, THRUSTER_DIRECTIONS, pulses):
+        force = NEWTONS_PER_KGF * T200_THRUST_KGF[pulse] * direction / np.linalg.norm(direction)
+        tau[:3] += force
+        tau[3:] += np.cross(position, force)
+    return tau
 
 
 def simulate(velocity, tau, seconds, step):

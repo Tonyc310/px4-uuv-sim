@@ -9,19 +9,21 @@
 #include <vector>
 
 #include "uuv_dynamics/motion.hpp"
+#include "uuv_dynamics/thrusters.hpp"
 #include "uuv_dynamics/vehicle.hpp"
 
 namespace
 {
 
 constexpr char kUsage[] =
-  "usage: simulate --seconds <s> --step <s> [--velocity <u v w p q r>]\n"
+  "usage: simulate --seconds <s> --step <s> [--velocity <u v w p q r>] [--pulses <us> x8]\n"
   "\n"
-  "Prints the BlueROV2 Heavy's free motion from a level start as CSV, one row per step: the time\n"
-  "and the body velocity (m/s and rad/s, forward-right-down). The time must be a whole number of\n"
-  "steps.\n";
+  "Prints the BlueROV2 Heavy's motion from a level start as CSV, one row per step: the time and\n"
+  "the body velocity (m/s and rad/s, forward-right-down). The time must be a whole number of\n"
+  "steps. The thrusters hold the given pulse widths; without --pulses they idle.\n";
 
 constexpr int kUsageError = 2;
+constexpr double kIdlePulseUs = 1500.0;
 // How far the time may be from a whole number of steps, as a fraction of it: a decimal step such
 // as 0.001 isn't exact in binary.
 constexpr double kWholeStepsTolerance = 1e-9;
@@ -31,6 +33,7 @@ struct Scenario
   std::int64_t steps = 0;
   double step_seconds = 0.0;
   uuv_dynamics::Vector6d velocity = uuv_dynamics::Vector6d::Zero();
+  uuv_dynamics::HeavyThrusts thrusts{};
 };
 
 [[nodiscard]] std::optional<double> number(const std::string & text)
@@ -52,6 +55,7 @@ bool is_option(const std::string & argument) { return argument.rfind("--", 0) ==
 {
   Scenario scenario;
   double seconds = 0.0;
+  std::vector<double> pulses(uuv_dynamics::kHeavyThrusterCount, kIdlePulseUs);
   std::set<std::string> options_seen;
   std::size_t next = 0;
   while (next < arguments.size()) {
@@ -73,6 +77,8 @@ bool is_option(const std::string & argument) { return argument.rfind("--", 0) ==
       scenario.step_seconds = values[0];
     } else if (option == "--velocity" && values.size() == 6) {
       scenario.velocity = Eigen::Map<const uuv_dynamics::Vector6d>(values.data());
+    } else if (option == "--pulses") {
+      pulses = values;
     } else {
       return std::nullopt;
     }
@@ -85,6 +91,11 @@ bool is_option(const std::string & argument) { return argument.rfind("--", 0) ==
     return std::nullopt;
   }
   scenario.steps = std::llround(steps);
+  const auto thrusts = uuv_dynamics::heavy_thrusts(pulses);
+  if (!thrusts) {
+    return std::nullopt;
+  }
+  scenario.thrusts = *thrusts;
   return scenario;
 }
 
@@ -107,14 +118,15 @@ int main(int argc, char ** argv)
     return kUsageError;
   }
   const uuv_dynamics::Vehicle heavy = uuv_dynamics::bluerov2_heavy();
+  const uuv_dynamics::Vector6d tau =
+    uuv_dynamics::thrust_wrench(uuv_dynamics::bluerov2_heavy_thrusters(), scenario->thrusts);
   uuv_dynamics::State state{
     Eigen::Vector3d::Zero(), Eigen::Quaterniond::Identity(), scenario->velocity};
 
   std::cout << std::setprecision(12) << "t,u,v,w,p,q,r\n";
   print_row(0.0, state.nu);
   for (std::int64_t i = 1; i <= scenario->steps; ++i) {
-    state =
-      uuv_dynamics::step(heavy, state, uuv_dynamics::Vector6d::Zero(), scenario->step_seconds);
+    state = uuv_dynamics::step(heavy, state, tau, scenario->step_seconds);
     print_row(static_cast<double>(i) * scenario->step_seconds, state.nu);
   }
   std::cout.flush();
