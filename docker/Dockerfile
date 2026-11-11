@@ -74,6 +74,17 @@ RUN mkdir -p "$GZ_FUEL_CACHE_PATH" \
 # PX4's models, so a world outside PX4's own launch finds the BlueROV2 Heavy's mesh.
 ENV GZ_SIM_RESOURCE_PATH=/opt/PX4-Autopilot/Tools/simulation/gz/models
 
+# Fossen's Python Vehicle Simulator at a fixed commit: the independent implementation the
+# validation tests compare the vehicle model with.
+ARG FOSSEN_SIMULATOR_COMMIT=a93d1938ba1f78f2580c24c73f003091b2f03cd0
+RUN mkdir -p /opt/PythonVehicleSimulator \
+    && cd /opt/PythonVehicleSimulator \
+    && git init --quiet \
+    && git fetch --quiet --depth 1 \
+        https://github.com/cybergalactic/PythonVehicleSimulator.git "$FOSSEN_SIMULATOR_COMMIT" \
+    && git checkout --quiet FETCH_HEAD
+ENV FOSSEN_SIMULATOR=/opt/PythonVehicleSimulator/src
+
 # Every command runs with ROS 2 and the px4_msgs workspace set up.
 COPY entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
