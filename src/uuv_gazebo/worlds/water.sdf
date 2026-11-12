@@ -11,7 +11,14 @@
     <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
     <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
     <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <!-- Water's blue behind the vehicle in Gazebo's window; the physics doesn't read it. -->
+    <scene>
+      <ambient>0.4 0.4 0.4</ambient>
+      <background>0.05 0.22 0.35</background>
+    </scene>
     <light type="directional" name="sun">
+      <!-- Its outline would be drawn at the origin, through the vehicle. -->
+      <visualize>false</visualize>
       <direction>-0.5 0.1 -0.9</direction>
     </light>
     <include>
