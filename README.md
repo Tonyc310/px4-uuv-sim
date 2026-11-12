@@ -2,6 +2,8 @@
 
 A physics-based simulation of the BlueROV2 Heavy, an unmanned underwater vehicle with eight thrusters, in Gazebo. The vehicle's 6-DOF dynamics follow Fossen's marine craft model and run as a Gazebo plugin, which takes thruster commands on the topic and in the form that the PX4 autopilot's Gazebo bridge publishes. The model is checked against an independent implementation of the same equations, Fossen's Python Vehicle Simulator, and in surge against Gazebo's own Hydrodynamics system.
 
+![The BlueROV2 Heavy in the open-water world, in Gazebo's 3D view](docs/images/bluerov2_heavy.png)
+
 That much works today, along with PX4's software-in-the-loop simulation and its ROS 2 bridge in the same container, so far with PX4's own quadcopter. Still to come, in the order of the milestones below: sensor models, PX4 holding the vehicle's depth and heading and flying a mission commanded from ROS 2, scripted scenarios that check the vehicle's behavior pass or fail, and last the same scenarios with PX4 on a real flight controller.
 
 It uses public vehicles and public data only.
@@ -116,7 +118,7 @@ tools/    dev.sh, which runs any command in the container
 - Thrust: Blue Robotics, [T200 Public Performance Data 10-20V, September 2019](https://cad.bluerobotics.com/T200-Public-Performance-Data-10-20V-September-2019.xlsx), the 16 V sheet, in `src/uuv_dynamics/src/thrusters.cpp`.
 - Equations: T. I. Fossen, *Handbook of Marine Craft Hydrodynamics and Motion Control*, 2nd ed., Wiley, 2021.
 - The reference the model is validated against: T. I. Fossen's [Python Vehicle Simulator](https://github.com/cybergalactic/PythonVehicleSimulator) (MIT), fetched into the container at a fixed commit.
-- The Heavy's mesh, thruster order and thrust directions: PX4's BlueROV2 Heavy model and airframe (BSD 3-Clause), used from the PX4 build in the container.
+- The Heavy's mesh, thruster order and thrust directions: PX4's BlueROV2 Heavy model and airframe (BSD 3-Clause, Copyright (c) 2022, PX4 Autopilot for Drones), used from the PX4 build in the container. The picture at the top renders that mesh.
 
 ## License
 
