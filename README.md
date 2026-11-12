@@ -1,19 +1,33 @@
 # px4-uuv-sim
 
-A physics-based simulation of an unmanned underwater vehicle, the BlueROV2, in Gazebo, flown by the PX4 autopilot and commanded from ROS 2. The vehicle's 6-DOF dynamics follow Fossen's marine craft model, with hydrodynamic coefficients from published BlueROV2 identification papers, and scripted scenarios check the vehicle's behavior pass or fail.
+A physics-based simulation of the BlueROV2 Heavy, an unmanned underwater vehicle with eight thrusters, in Gazebo. The vehicle's 6-DOF dynamics follow Fossen's marine craft model and run as a Gazebo plugin, which takes thruster commands on the topic and in the form that the PX4 autopilot's Gazebo bridge publishes. The model is checked against an independent implementation of the same equations, Fossen's Python Vehicle Simulator, and in surge against Gazebo's own Hydrodynamics system.
+
+That much works today, along with PX4's software-in-the-loop simulation and its ROS 2 bridge in the same container, so far with PX4's own quadcopter. Still to come, in the order of the milestones below: sensor models, PX4 holding the vehicle's depth and heading and flying a mission commanded from ROS 2, scripted scenarios that check the vehicle's behavior pass or fail, and last the same scenarios with PX4 on a real flight controller.
 
 It uses public vehicles and public data only.
 
 ## Status
 
-Milestone 1, the toolchain, is done: Gazebo Harmonic and PX4 v1.17.0's software-in-the-loop simulation run in the development container, and PX4's topics reach ROS 2 through the Micro XRCE-DDS Agent, each tested. Milestone 2, the vehicle model for the BlueROV2 Heavy, is done too: `uuv_dynamics` holds the vehicle's equations of motion in Fossen's form and the thrust of its eight T200 thrusters, integrates them over time, works out the wrench a Gazebo plugin must add to Gazebo's rigid-body physics, and converts between Gazebo's frames and Fossen's. `uuv_gazebo`'s plugin applies that wrench, thrust included, to a BlueROV2 Heavy model in Gazebo, and takes thruster commands the way PX4 sends them. `uuv_validation` checks the model against an independent implementation of the same equations, Fossen's Python Vehicle Simulator: free decay in each axis, the response to each thruster alone and to forward thrust, and the surge, heave and yaw step responses. It also checks surge against Gazebo's own Hydrodynamics system. Its parameters come from Wu (2018), who estimated them from published data on the earlier BlueROV because the tank tests he planned weren't run, so the model is a plausible BlueROV2 Heavy, not a measured one. Each value cites its table and page in `src/uuv_dynamics/src/vehicle.cpp`. One consequence of those values shows when there is no autopilot: forward thrust pitches the nose up, because the horizontal thrusters push 85 mm below the body origin and the centre of gravity sits only 20 mm below it. Up to about 3 N the vehicle settles at a steady speed. At 10 N its speed keeps oscillating by 15%. At 45 N, about a third of full thrust, the nose-up moment (3.8 N m) exceeds the most the weight can right (2.3 N m), and the vehicle loops. Holding pitch is the autopilot's job, in milestone 4. The plan, in order:
+The first two of six milestones are done:
 
-1. **Toolchain:** Gazebo's underwater example and PX4's software-in-the-loop simulation running, with PX4's topics in ROS 2.
-2. **Vehicle model:** a Gazebo system plugin for the BlueROV2's 6-DOF dynamics (rigid body, added mass, damping, buoyancy, thrusters), checked against Gazebo's own hydrodynamics and Fossen's Python simulator.
+1. **Toolchain (done):** Gazebo Harmonic and PX4 v1.17.0's software-in-the-loop simulation run in the development container, and PX4's topics reach ROS 2 through the Micro XRCE-DDS Agent, each tested.
+2. **Vehicle model (done):** a Gazebo system plugin for the BlueROV2 Heavy's 6-DOF dynamics (rigid body, added mass, damping, buoyancy, thrusters), checked against Fossen's Python simulator and, in surge, against Gazebo's own Hydrodynamics system.
 3. **Sensors:** IMU, pressure, magnetometer and DVL, with configurable noise, bias, drift and dropouts.
 4. **PX4 and ROS 2:** PX4 holding depth and heading and flying a waypoint mission, commanded over ROS 2.
 5. **Scenarios:** currents, starting states and sensor faults, recorded and scored pass or fail by one command.
 6. **Hardware in the loop:** the same scenarios with PX4 on a real flight controller.
+
+## The vehicle model
+
+Three packages hold it:
+
+- `uuv_dynamics` holds the vehicle's equations of motion in Fossen's form and the thrust of its eight T200 thrusters, integrates them over time, works out the wrench a Gazebo plugin must add to Gazebo's rigid-body physics, and converts between Gazebo's frames and Fossen's. It doesn't depend on Gazebo.
+- `uuv_gazebo`'s plugin applies that wrench, thrust included, to a BlueROV2 Heavy model in Gazebo, and takes thruster commands the way PX4 sends them.
+- `uuv_validation` checks the model against an independent implementation of the same equations, Fossen's Python Vehicle Simulator: free decay in each axis, the response to each thruster alone and to forward thrust, and the surge, heave and yaw step responses. It also checks surge against Gazebo's own Hydrodynamics system.
+
+The model is a plausible BlueROV2 Heavy, not a measured one. Its parameters come from Wu (2018), who estimated them from published data on the earlier BlueROV because the tank tests he planned weren't run. Each value cites its table and page in `src/uuv_dynamics/src/vehicle.cpp`.
+
+One consequence of those values shows when there is no autopilot: forward thrust pitches the nose up, because the horizontal thrusters push 85 mm below the body origin and the centre of gravity sits only 20 mm below it. Up to about 3 N the vehicle settles at a steady speed. At 10 N its speed keeps oscillating by 15%. At 45 N, about a third of full thrust, the nose-up moment (3.8 N m) exceeds the most the weight can right (2.3 N m), and the vehicle loops. Holding pitch is the autopilot's job, in milestone 4.
 
 ## Build and test
 
